@@ -1,0 +1,40 @@
+name: Build Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Unzip project
+        run: unzip -q SmartPdfToWord.zip
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Download OCR models (Arabic + English)
+        working-directory: SmartPdfToWord
+        run: |
+          mkdir -p app/src/main/assets/tessdata
+          curl -L --fail --retry 3 -o app/src/main/assets/tessdata/ara.traineddata https://github.com/tesseract-ocr/tessdata_best/raw/main/ara.traineddata
+          curl -L --fail --retry 3 -o app/src/main/assets/tessdata/eng.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata
+
+      - name: Test and build APK
+        working-directory: SmartPdfToWord
+        run: gradle :core:test :app:assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartPdfToWord-debug-apk
+          path: SmartPdfToWord/app/build/outputs/apk/debug/*.apk
